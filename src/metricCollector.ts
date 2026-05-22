@@ -65,3 +65,17 @@ export function resetMetrics(store: MetricStore): void {
   fresh.startedAt = store.startedAt;
   store.metrics = fresh.metrics;
 }
+
+/**
+ * Returns a summary string of the current metrics suitable for logging.
+ * Example: "scans=42 changes=7 openPorts=15 uptime=300s"
+ */
+export function formatMetricsSummary(store: MetricStore): string {
+  const m = getMetrics(store);
+  return [
+    `scans=${m.totalScans}`,
+    `changes=${m.totalChanges}`,
+    `openPorts=${m.openPorts}`,
+    `uptime=${m.uptimeSeconds}s`,
+  ].join(' ');
+}
