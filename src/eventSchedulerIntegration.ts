@@ -1,43 +1,54 @@
-/**
- * eventSchedulerIntegration.ts
- * High-level integration wrapper for the event scheduler.
- */
-
 import {
-  SchedulerStore,
   createSchedulerStore,
   startScheduler,
   stopScheduler,
   getSchedulerStats,
 } from "./eventScheduler";
 
+export interface SchedulerIntegrationOptions {
+  intervalMs: number;
+  jitterMs?: number;
+  maxDrift?: number;
+}
+
 export interface SchedulerIntegration {
-  store: SchedulerStore;
-  start: (task: () => void | Promise<void>) => void;
+  start: (callback: () => void) => void;
   stop: () => void;
-  stats: () => { running: boolean; tickCount: number; lastTickAt: number | null };
   isRunning: () => boolean;
+  getStats: () => { ticks: number; lastTickAt: number | null };
 }
 
 export function createSchedulerIntegration(
-  intervalMs: number,
-  jitterMs = 0
+  options: SchedulerIntegrationOptions
 ): SchedulerIntegration {
-  const store = createSchedulerStore(intervalMs, jitterMs);
+  const store = createSchedulerStore({
+    intervalMs: options.intervalMs,
+    jitterMs: options.jitterMs ?? 0,
+    maxDrift: options.maxDrift ?? 0,
+  });
 
-  return {
-    store,
-    start(task) {
-      startScheduler(store, task);
-    },
-    stop() {
-      stopScheduler(store);
-    },
-    stats() {
-      return getSchedulerStats(store);
-    },
-    isRunning() {
-      return store.running;
-    },
-  };
+  function start(callback: () => void): void {
+    if (store.running) {
+      return;
+    }
+    startScheduler(store, callback);
+  }
+
+  function stop(): void {
+    stopScheduler(store);
+  }
+
+  function isRunning(): boolean {
+    return store.running;
+  }
+
+  function getStats(): { ticks: number; lastTickAt: number | null } {
+    const raw = getSchedulerStats(store);
+    return {
+      ticks: raw.ticks,
+      lastTickAt: raw.lastTickAt,
+    };
+  }
+
+  return { start, stop, isRunning, getStats };
 }
