@@ -77,6 +77,19 @@ describe("createSchedulerIntegration", () => {
     integration.stop();
   });
 
+  it("should reset tick count between runs", () => {
+    const cb = jest.fn();
+    const integration = createSchedulerIntegration({ intervalMs: 100 });
+    integration.start(cb);
+    jest.advanceTimersByTime(300);
+    integration.stop();
+    integration.start(cb);
+    jest.advanceTimersByTime(100);
+    const stats = integration.getStats();
+    expect(stats.ticks).toBe(1);
+    integration.stop();
+  });
+
   it("should allow restart after stop", () => {
     const cb = jest.fn();
     const integration = createSchedulerIntegration({ intervalMs: 100 });
