@@ -1,51 +1,46 @@
-/**
- * eventRouterIntegration — wires the event router into the portwatch pipeline,
- * providing convenience helpers for common sink registrations.
- */
+import { createRouterStore, registerSink, unregisterSink, routeEvents } from './eventRouter';
 
-import {
-  createRouterStore,
-  registerSink,
-  unregisterSink,
-  routeEvents,
-  listSinks,
-  shutdownRouter,
-  RouterStore,
-  RouterEvent,
-  SinkFn,
-} from './eventRouter';
-
-export interface RouterIntegration {
-  store: RouterStore;
+export interface RouterIntegration<T> {
+  addSink: (id: string, handler: (events: T[]) => void) => void;
+  removeSink: (id: string) => void;
+  dispatch: (events: T[]) => void;
+  activeSinks: () => number;
+  shutdown: () => void;
 }
 
-export function createRouterIntegration(): RouterIntegration {
-  return { store: createRouterStore() };
+export function createRouterIntegration<T>(): RouterIntegration<T> {
+  const store = createRouterStore<T>();
+
+  function addSink(id: string, handler: (events: T[]) => void): void {
+    registerSink(store, id, handler);
+  }
+
+  function removeSink(id: string): void {
+    unregisterSink(store, id);
+  }
+
+  function dispatch(events: T[]): void {
+    if (events.length === 0) return;
+    routeEvents(store, events);
+  }
+
+  function activeSinks(): number {
+    return store.sinks.size;
+  }
+
+  function shutdown(): void {
+    for (const id of Array.from(store.sinks.keys())) {
+      unregisterSink(store, id);
+    }
+  }
+
+  return { addSink, removeSink, dispatch, activeSinks, shutdown };
 }
 
-export function addSink(
-  integration: RouterIntegration,
-  name: string,
-  fn: SinkFn
-): void {
-  registerSink(integration.store, name, fn);
-}
+// Convenience module-level wrappers using a default integration instance
+const _default = createRouterIntegration<unknown>();
 
-export function removeSink(integration: RouterIntegration, name: string): void {
-  unregisterSink(integration.store, name);
-}
-
-export function dispatch(
-  integration: RouterIntegration,
-  events: RouterEvent[]
-): void {
-  routeEvents(integration.store, events);
-}
-
-export function activeSinks(integration: RouterIntegration): string[] {
-  return listSinks(integration.store);
-}
-
-export function shutdownRouterIntegration(integration: RouterIntegration): void {
-  shutdownRouter(integration.store);
-}
+export const addSink = _default.addSink;
+export const removeSink = _default.removeSink;
+export const dispatch = _default.dispatch;
+export const activeSinks = _default.activeSinks;
